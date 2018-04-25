@@ -2,7 +2,9 @@ module Geometry exposing (..)
 
 
 type alias Vector =
-    ( Float, Float )
+    { x : Float
+    , y : Float
+    }
 
 
 type alias Rectangle =
@@ -24,20 +26,25 @@ clamp min max k =
 
 
 vadd : Vector -> Vector -> Vector
-vadd ( x1, y1 ) ( x2, y2 ) =
-    ( x1 + x2, y1 + y2 )
+vadd a b =
+    Vector (a.x + b.x) (a.y + b.y)
+
+
+vsubtract : Vector -> Vector -> Vector
+vsubtract a b =
+    Vector (a.x - b.x) (a.y - b.y)
 
 
 vscale : Float -> Vector -> Vector
-vscale k ( x, y ) =
-    ( x * k, y * k )
+vscale k { x, y } =
+    Vector (x * k) (y * k)
 
 
 vlength : Vector -> Float
-vlength ( x, y ) =
+vlength { x, y } =
     sqrt (x * x + y * y)
 
 
 vclamp : Rectangle -> Vector -> Vector
-vclamp bounds ( x, y ) =
-    ( clamp bounds.left bounds.right x, clamp bounds.top bounds.bottom y )
+vclamp bounds { x, y } =
+    Vector (clamp bounds.left bounds.right x) (clamp bounds.top bounds.bottom y)
