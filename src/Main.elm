@@ -1,18 +1,34 @@
 module Main exposing (..)
 
+---- EXTERNAL DEPENDENCIES ----
+
 import AnimationFrame
-import Geometry exposing (Vector, Rectangle, vadd, vsubtract, vscale, vlength, vclamp)
 import Html exposing (Html, text, div, p, a)
 import Html.Attributes exposing (class, style, href)
-import Html.Events exposing (on, onMouseUp)
-import Json.Decode as Decode exposing (Decoder)
+import Html.Events as Events
+import Json.Decode as Decode
 import Mouse
 import Task
 import Time exposing (Time)
 import Window
 
 
+---- INTERNAL DEPENDENCIES ----
+
+import Vector exposing (Vector, Rectangle)
+
+
 ---- CONSTANTS ----
+
+
+initialPosition : Vector
+initialPosition =
+    Vector radius 300
+
+
+initialVelocity : Vector
+initialVelocity =
+    Vector 750 -750
 
 
 diameter : Float
@@ -35,44 +51,49 @@ bounce =
     -0.8
 
 
-drag : Float
-drag =
+resistance : Float
+resistance =
     -0.2
+
+
+throwMultiplier : Float
+throwMultiplier =
+    30
 
 
 
 ---- MODEL ----
 
 
-type alias DragInfo =
-    { lastPosition : Vector
-    , ballOffset : Vector
-    }
-
-
-type DragStatus
-    = NotDragging
-    | Dragging DragInfo
-
-
 type alias Model =
-    { velocity : Vector
-    , position : Vector
+    { position : Vector
+    , velocity : Vector
     , rotation : Float
     , windowSize : Window.Size
     , dragStatus : DragStatus
     }
 
 
+type DragStatus
+    = NotDragging
+    | Dragging DragModel
+
+
+type alias DragModel =
+    { lastPosition : Vector
+    , ballOffset : Vector
+    }
+
+
 init : ( Model, Cmd Msg )
 init =
-    ( initialModel, Task.perform Resize Window.size )
+    ( initModel, Task.perform Resize Window.size )
 
 
-initialModel : Model
-initialModel =
-    { velocity = Vector 500 0
-    , position = Vector 0 0
+initModel : Model
+initModel =
+    { position = initialPosition
+    , velocity = initialVelocity
     , rotation = 0
     , windowSize = Window.Size 0 0
     , dragStatus = NotDragging
@@ -86,9 +107,9 @@ initialModel =
 type Msg
     = Tick Time
     | Resize Window.Size
-    | StartDrag Mouse.Position
-    | DoDrag Mouse.Position
-    | StopDrag Mouse.Position
+    | BeginDrag Mouse.Position
+    | Drag Mouse.Position
+    | EndDrag Mouse.Position
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -100,14 +121,14 @@ update msg model =
         Resize size ->
             ( { model | windowSize = size }, Cmd.none )
 
-        StartDrag position ->
-            ( startDrag position model, Cmd.none )
+        BeginDrag position ->
+            ( beginDrag position model, Cmd.none )
 
-        DoDrag position ->
-            ( doDrag position model, Cmd.none )
+        Drag position ->
+            ( drag position model, Cmd.none )
 
-        StopDrag position ->
-            ( stopDrag position model, Cmd.none )
+        EndDrag position ->
+            ( endDrag position model, Cmd.none )
 
 
 tick : Time -> Model -> Model
@@ -120,28 +141,28 @@ tick time model =
 
                 velocity =
                     model.velocity
-                        |> vadd (vscale (drag * seconds) model.velocity)
-                        |> vadd (vscale seconds gravity)
+                        |> Vector.add (Vector.scale (resistance * seconds) model.velocity)
+                        |> Vector.add (Vector.scale seconds gravity)
 
                 position =
-                    vadd model.position (vscale seconds velocity)
+                    Vector.add model.position (Vector.scale seconds velocity)
 
                 circumference =
                     pi * diameter
 
                 rotation =
-                    toFloat (round position.x % round circumference) / circumference * pi * 2
+                    toFloat (round position.x % round circumference) / circumference * turns 1
 
                 bounds =
                     calculateBounds model.windowSize
             in
                 { model
-                    | velocity = collisions bounds position velocity
-                    , position = vclamp bounds position
+                    | position = Vector.clamp bounds position
+                    , velocity = calculateCollisionVelocity bounds position velocity
                     , rotation = rotation
                 }
 
-        Dragging dragInfo ->
+        Dragging _ ->
             model
 
 
@@ -150,8 +171,8 @@ calculateBounds { width, height } =
     Rectangle radius radius (toFloat width - radius) (toFloat height - radius)
 
 
-collisions : Rectangle -> Vector -> Vector -> Vector
-collisions bounds position velocity =
+calculateCollisionVelocity : Rectangle -> Vector -> Vector -> Vector
+calculateCollisionVelocity bounds position velocity =
     let
         vx =
             if position.x < bounds.left || position.x > bounds.right then
@@ -168,38 +189,45 @@ collisions bounds position velocity =
         Vector vx vy
 
 
-startDrag : Mouse.Position -> Model -> Model
-startDrag position model =
-    let
-        ballOffset =
-            vsubtract model.position (vectorize position)
-    in
-        { model | dragStatus = Dragging { lastPosition = model.position, ballOffset = ballOffset } }
+beginDrag : Mouse.Position -> Model -> Model
+beginDrag mousePosition model =
+    { model
+        | dragStatus =
+            Dragging
+                { lastPosition = model.position
+                , ballOffset = Vector.subtract model.position (vectorize mousePosition)
+                }
+    }
 
 
-doDrag : Mouse.Position -> Model -> Model
-doDrag position model =
+drag : Mouse.Position -> Model -> Model
+drag mousePosition model =
     case model.dragStatus of
         NotDragging ->
             model
 
-        Dragging dragInfo ->
-            { model | position = vadd (vectorize position) dragInfo.ballOffset, dragStatus = Dragging { dragInfo | lastPosition = model.position } }
-
-
-stopDrag : Mouse.Position -> Model -> Model
-stopDrag position model =
-    case model.dragStatus of
-        NotDragging ->
-            model
-
-        Dragging dragInfo ->
+        Dragging dragModel ->
             { model
-                | dragStatus = NotDragging
-                , position = vadd (vectorize position) dragInfo.ballOffset
-                , velocity =
-                    vsubtract (vectorize position) dragInfo.lastPosition |> vscale 30
+                | position = Vector.add (vectorize mousePosition) dragModel.ballOffset
+                , dragStatus = Dragging { dragModel | lastPosition = model.position }
             }
+
+
+endDrag : Mouse.Position -> Model -> Model
+endDrag mousePosition model =
+    case model.dragStatus of
+        NotDragging ->
+            model
+
+        Dragging dragModel ->
+            let
+                position =
+                    Vector.add (vectorize mousePosition) dragModel.ballOffset
+
+                velocity =
+                    Vector.scale throwMultiplier (Vector.subtract position dragModel.lastPosition)
+            in
+                { model | position = position, velocity = velocity, dragStatus = NotDragging }
 
 
 vectorize : Mouse.Position -> Vector
@@ -216,8 +244,8 @@ subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs Tick
         , Window.resizes Resize
-        , Mouse.moves DoDrag
-        , Mouse.ups StopDrag
+        , Mouse.moves Drag
+        , Mouse.ups EndDrag
         ]
 
 
@@ -248,7 +276,7 @@ ball position rotation =
         div
             [ class "ball"
             , style [ ( "left", left ), ( "top", top ), ( "transform", transform ) ]
-            , on "mousedown" (Decode.map StartDrag Mouse.position)
+            , Events.on "mousedown" (Decode.map BeginDrag Mouse.position)
             ]
             []
 
