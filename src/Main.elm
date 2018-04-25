@@ -289,6 +289,9 @@ credits =
         , text " / "
         , a [ href "https://twitter.com/noisysocks" ]
             [ text "@noisysocks" ]
+        , text " / "
+        , a [ href "https://github.com/noisysocks/homepage" ]
+            [ text "View source" ]
         ]
 
 
