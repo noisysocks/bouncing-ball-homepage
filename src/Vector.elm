@@ -1,4 +1,4 @@
-module Vector exposing (Vector, Rectangle, add, subtract, scale, length, clamp)
+module Vector exposing (Vector, Rectangle, add, subtract, scale, length, clamp, fromTuple)
 
 
 type alias Vector =
@@ -38,3 +38,8 @@ length { x, y } =
 clamp : Rectangle -> Vector -> Vector
 clamp bounds { x, y } =
     Vector (Basics.clamp bounds.left bounds.right x) (Basics.clamp bounds.top bounds.bottom y)
+
+
+fromTuple : ( Float, Float ) -> Vector
+fromTuple ( x, y ) =
+    Vector x y

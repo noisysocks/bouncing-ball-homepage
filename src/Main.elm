@@ -5,11 +5,10 @@ module Main exposing (..)
 import AnimationFrame
 import Html exposing (Html, text, div, p, a)
 import Html.Attributes exposing (class, style, href)
-import Html.Events as Events
-import Json.Decode as Decode
 import Mouse
 import Task
 import Time exposing (Time)
+import Touch
 import Window
 
 
@@ -107,9 +106,9 @@ initModel =
 type Msg
     = Tick Time
     | Resize Window.Size
-    | BeginDrag Mouse.Position
-    | Drag Mouse.Position
-    | EndDrag Mouse.Position
+    | StartDrag ( Float, Float )
+    | Drag ( Float, Float )
+    | EndDrag ( Float, Float )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -121,8 +120,8 @@ update msg model =
         Resize size ->
             ( { model | windowSize = size }, Cmd.none )
 
-        BeginDrag position ->
-            ( beginDrag position model, Cmd.none )
+        StartDrag position ->
+            ( startDrag position model, Cmd.none )
 
         Drag position ->
             ( drag position model, Cmd.none )
@@ -189,32 +188,32 @@ calculateCollisionVelocity bounds position velocity =
         Vector vx vy
 
 
-beginDrag : Mouse.Position -> Model -> Model
-beginDrag mousePosition model =
+startDrag : ( Float, Float ) -> Model -> Model
+startDrag dragPosition model =
     { model
         | dragStatus =
             Dragging
                 { lastPosition = model.position
-                , ballOffset = Vector.subtract model.position (vectorize mousePosition)
+                , ballOffset = Vector.subtract model.position (Vector.fromTuple dragPosition)
                 }
     }
 
 
-drag : Mouse.Position -> Model -> Model
-drag mousePosition model =
+drag : ( Float, Float ) -> Model -> Model
+drag dragPosition model =
     case model.dragStatus of
         NotDragging ->
             model
 
         Dragging dragModel ->
             { model
-                | position = Vector.add (vectorize mousePosition) dragModel.ballOffset
+                | position = Vector.add (Vector.fromTuple dragPosition) dragModel.ballOffset
                 , dragStatus = Dragging { dragModel | lastPosition = model.position }
             }
 
 
-endDrag : Mouse.Position -> Model -> Model
-endDrag mousePosition model =
+endDrag : ( Float, Float ) -> Model -> Model
+endDrag dragPosition model =
     case model.dragStatus of
         NotDragging ->
             model
@@ -222,17 +221,12 @@ endDrag mousePosition model =
         Dragging dragModel ->
             let
                 position =
-                    Vector.add (vectorize mousePosition) dragModel.ballOffset
+                    Vector.add (Vector.fromTuple dragPosition) dragModel.ballOffset
 
                 velocity =
                     Vector.scale throwMultiplier (Vector.subtract position dragModel.lastPosition)
             in
                 { model | position = position, velocity = velocity, dragStatus = NotDragging }
-
-
-vectorize : Mouse.Position -> Vector
-vectorize { x, y } =
-    Vector (toFloat x) (toFloat y)
 
 
 
@@ -244,8 +238,6 @@ subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs Tick
         , Window.resizes Resize
-        , Mouse.moves Drag
-        , Mouse.ups EndDrag
         ]
 
 
@@ -255,7 +247,14 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div [ class "homepage" ]
+    div
+        [ class "homepage"
+        , Mouse.onMove (.clientPos >> Drag)
+        , Mouse.onUp (.clientPos >> EndDrag)
+        , Touch.onMove (touchCoordinates >> Drag)
+        , Touch.onEnd (touchCoordinates >> EndDrag)
+        , Touch.onCancel (touchCoordinates >> EndDrag)
+        ]
         [ ball model.position model.rotation
         , credits
         ]
@@ -276,9 +275,15 @@ ball position rotation =
         div
             [ class "ball"
             , style [ ( "left", left ), ( "top", top ), ( "transform", transform ) ]
-            , Events.on "mousedown" (Decode.map BeginDrag Mouse.position)
+            , Mouse.onDown (.clientPos >> StartDrag)
+            , Touch.onStart (touchCoordinates >> StartDrag)
             ]
             []
+
+
+touchCoordinates : Touch.Event -> ( Float, Float )
+touchCoordinates event =
+    List.head event.changedTouches |> Maybe.map .clientPos |> Maybe.withDefault ( 0, 0 )
 
 
 credits : Html Msg
@@ -286,10 +291,8 @@ credits =
     p [ class "credits" ]
         [ a [ href "mailto:robert@noisysocks.com" ]
             [ text "Robert Anderson" ]
-        , text " / "
         , a [ href "https://twitter.com/noisysocks" ]
             [ text "@noisysocks" ]
-        , text " / "
         , a [ href "https://github.com/noisysocks/homepage" ]
             [ text "View source" ]
         ]

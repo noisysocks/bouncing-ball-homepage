@@ -1,14 +1,24 @@
 body {
   color: lightseagreen;
   font-family: monospace;
-  font-size: 14px;
+  font-size: 16px;
   margin: 0;
   padding: 0;
+}
+
+a {
+  color: lightseagreen;
+  font-weight: bold;
+}
+
+a:active {
+  color: orangered;
 }
 
 .homepage {
   background: lightyellow;
   height: 100%;
+  overflow: hidden;
   position: absolute;
   width: 100%;
 }
@@ -20,16 +30,25 @@ body {
   height: 125px;
   position: absolute;
   width: 125px;
+  z-index: 1;
 }
 
 .credits {
-  margin: 1em;
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
   position: absolute;
   right: 0;  
   top: 0;
 }
 
+@media (min-width: 420px) {
+  .credits {
+    flex-direction: row;
+  }
+}
+
 .credits a {
-  color: lightseagreen;
-  font-weight: bold;
+  margin: 10px;
 }

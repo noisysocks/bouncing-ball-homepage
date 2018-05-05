@@ -3,7 +3,6 @@
     "summary": "My home on the world wide web",
     "repository": "https://github.com/noisysocks/homepage.git",
     "license": "MIT",
-    "homepage": "https://noisysocks.com",
     "source-directories": [
         "src"
     ],
@@ -12,8 +11,8 @@
         "elm-lang/animation-frame": "1.0.1 <= v < 2.0.0",
         "elm-lang/core": "5.0.0 <= v < 6.0.0",
         "elm-lang/html": "2.0.0 <= v < 3.0.0",
-        "elm-lang/mouse": "1.0.1 <= v < 2.0.0",
-        "elm-lang/window": "1.0.1 <= v < 2.0.0"
+        "elm-lang/window": "1.0.1 <= v < 2.0.0",
+        "mpizenberg/elm-pointer-events": "2.0.1 <= v < 3.0.0"
     },
     "elm-version": "0.18.0 <= v < 0.19.0"
 }
