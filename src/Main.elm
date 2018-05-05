@@ -247,15 +247,16 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div
-        [ class "homepage"
-        , Mouse.onMove (.clientPos >> Drag)
-        , Mouse.onUp (.clientPos >> EndDrag)
-        , Touch.onMove (touchCoordinates >> Drag)
-        , Touch.onEnd (touchCoordinates >> EndDrag)
-        , Touch.onCancel (touchCoordinates >> EndDrag)
-        ]
-        [ ball model.position model.rotation
+    div []
+        [ div
+            [ class "homepage"
+            , Mouse.onMove (.clientPos >> Drag)
+            , Mouse.onUp (.clientPos >> EndDrag)
+            , Touch.onMove (touchCoordinates >> Drag)
+            , Touch.onEnd (touchCoordinates >> EndDrag)
+            , Touch.onCancel (touchCoordinates >> EndDrag)
+            ]
+            [ ball model.position model.rotation ]
         , credits
         ]
 
