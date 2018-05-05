@@ -9,13 +9,15 @@
   "dependencies": {},
   "devDependencies": {
     "create-elm-app": "^1.10.4",
+    "elm-format": "^0.6.1-alpha",
     "gh-pages": "^1.1.0"
   },
   "scripts": {
     "start": "elm-app start",
     "build": "elm-app build",
     "deploy": "gh-pages -d build",
-    "test": "elm-app test"
+    "test": "elm-app test",
+    "format": "elm-format src"
   },
   "repository": {
     "type": "git",
